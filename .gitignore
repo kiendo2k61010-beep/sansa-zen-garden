@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.log
+artifacts/
+dist-server/
+.tools/
+.runtime/
+
+.env.*
+!.env.example

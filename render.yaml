@@ -1,0 +1,24 @@
+# One long-lived process serves both the frontend and Socket.IO.
+# Room state is in memory: keep one instance until a shared-state adapter is implemented.
+services:
+  - type: web
+    name: sansa-zen-garden
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: MAX_CONNECTIONS
+        value: '240'
+      - key: PUBLIC_ORIGIN
+        fromService:
+          name: sansa-zen-garden
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL

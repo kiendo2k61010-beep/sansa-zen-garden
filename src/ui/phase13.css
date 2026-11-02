@@ -1,0 +1,718 @@
+:root {
+  --ink: #4d4135;
+  --olive: #826341;
+  --paper: #fbf6eb;
+  --line: #ded3bf;
+  color: var(--ink);
+}
+.in-lobby > .topbar,
+.in-lobby > .intro,
+.in-lobby > .bottom-center,
+.in-lobby > .bottom-left,
+.in-lobby > .bottom-right,
+.in-lobby > .offline-note {
+  display: none;
+}
+.in-world > .intro,
+.legacy-location {
+  display: none;
+}
+.brand strong {
+  letter-spacing: -2px;
+}
+.onboarding {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 32px 6%;
+  background: linear-gradient(90deg, #eee9d9de, transparent 70%);
+  overflow: auto;
+}
+.onboarding-card {
+  width: 394px;
+  padding: 30px;
+  background: #fcf8edf0;
+  border: 1px solid #fff9e9;
+  box-shadow: 0 20px 75px #40301b21;
+  border-radius: 6px;
+  backdrop-filter: blur(16px);
+}
+.onboarding h1 {
+  font-family: var(--serif);
+  font-size: 47px;
+  letter-spacing: 4px;
+  line-height: 1;
+  margin: 20px 0 0;
+  font-weight: 450;
+}
+.onboarding h1 span {
+  display: block;
+  font:
+    500 14px 'Be Vietnam Pro',
+    sans-serif;
+  letter-spacing: 6px;
+  margin-top: 13px;
+}
+.onboard-subtitle {
+  font-family: var(--serif);
+  font-style: italic;
+  color: #8a7254;
+  font-size: 15px;
+  margin: 17px 0 28px;
+}
+.onboarding label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+}
+.onboarding input,
+.onboarding select {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 12px;
+  margin: 8px 0 18px;
+  background: #fffcf4;
+  color: var(--ink);
+}
+.avatar-picker {
+  padding: 0;
+  border: 0;
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+}
+.avatar-picker legend {
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+.avatar-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  flex: 1;
+  border: 1px solid #e0d5c1;
+  border-radius: 4px;
+  background: #f6efe0;
+  padding: 10px 4px;
+}
+.avatar-option.selected {
+  border-color: #9a7445;
+  background: #efe3cb;
+}
+.avatar-option > svg {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+}
+.avatar-option strong {
+  font-size: 12px;
+  margin: 7px 0 5px;
+}
+.avatar-option small {
+  font-size: 8px;
+  color: #88765d;
+}
+.avatar-portrait {
+  width: 48px;
+  height: 53px;
+  position: relative;
+  overflow: hidden;
+  display: block;
+  border-radius: 40% 40% 20% 20%;
+  background: linear-gradient(#efe6d2, #ded9be);
+}
+.avatar-portrait i {
+  position: absolute;
+  width: 20px;
+  height: 24px;
+  border-radius: 45%;
+  left: 14px;
+  top: 7px;
+  background: #cfa782;
+  box-shadow: inset 0 3px #584a3b;
+}
+.avatar-portrait b {
+  position: absolute;
+  width: 42px;
+  height: 33px;
+  border-radius: 50% 50% 0 0;
+  left: 3px;
+  top: 29px;
+  background: linear-gradient(100deg, #7b5230, #b28a54 40%, #7e5738);
+}
+.portrait-lotus b {
+  background: linear-gradient(100deg, #75544a, #b18d7f 40%, #7d6058);
+}
+.portrait-lotus i {
+  box-shadow: inset 0 7px #4e3e36;
+}
+.portrait-sage b {
+  background: linear-gradient(100deg, #4c5a43, #8c9978 40%, #5d6b50);
+}
+.entry-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 17px;
+}
+.entry-tabs button {
+  padding: 10px 0;
+  font-size: 11px;
+  flex: 1;
+  border-bottom: 2px solid transparent;
+}
+.entry-tabs button[aria-pressed='true'] {
+  border-color: #9a7445;
+  color: #7e572e;
+  font-weight: 600;
+}
+.entry-room {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  margin: 17px 0;
+}
+.enter-button {
+  width: 100%;
+  background: #80613d;
+  justify-content: space-between;
+}
+.entry-note {
+  display: block;
+  text-align: center;
+  font-size: 9px;
+  color: #8e7b62;
+  margin-top: 16px;
+  line-height: 1.7;
+}
+.onboard-caption {
+  align-self: flex-end;
+  margin: 0 0 30px auto;
+  color: #fff9e8;
+  text-shadow: 0 2px 12px #3d3827;
+}
+.onboard-caption span {
+  font-size: 9px;
+  letter-spacing: 3px;
+}
+.onboard-caption p {
+  font: 300 22px/1.7 var(--serif);
+  margin: 12px 0;
+}
+.social-tools {
+  position: absolute;
+  left: 27px;
+  top: 108px;
+  display: flex;
+  gap: 5px;
+  padding: 6px;
+  background: #fbf7ecd9;
+  border: 1px solid #fff5df;
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+}
+.social-tools button {
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 4px;
+}
+.social-tools button span {
+  font-size: 10px;
+}
+.social-tools .selected,
+.social-tools button:hover {
+  background: #e5d8c0;
+}
+.chat-box {
+  position: absolute;
+  left: 27px;
+  top: 167px;
+  width: 300px;
+  background: #fcf8eef0;
+  border: 1px solid #fff7e5;
+  border-radius: 7px;
+  box-shadow: 0 8px 40px #4e361b18;
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+}
+.chat-box header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 14px 10px;
+  font-family: var(--serif);
+  font-size: 15px;
+}
+.chat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px 8px;
+  font-size: 9px;
+  color: #8b765f;
+}
+.chat-toggle input {
+  margin: 0;
+  accent-color: #8b6b40;
+}
+.chat-messages {
+  height: 210px;
+  overflow: auto;
+  padding: 2px 14px 10px;
+  overscroll-behavior: contain;
+}
+.chat-messages p {
+  margin: 11px 0;
+  font-size: 11px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.chat-messages strong {
+  display: block;
+  font-size: 10px;
+  color: #8a6d45;
+}
+.chat-messages .own strong {
+  color: #6f8158;
+}
+.chat-empty {
+  font: italic 12px/1.9 var(--serif);
+  color: #998971;
+  padding: 13px;
+}
+.chat-box form {
+  display: flex;
+  padding: 8px;
+  border-top: 1px solid var(--line);
+}
+.chat-box form input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 9px;
+  font-size: 11px;
+}
+.chat-box form button {
+  padding: 9px;
+}
+.people-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.person-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.person-row > i {
+  width: 27px;
+  height: 32px;
+  border-radius: 45% 45% 28% 28%;
+}
+.person-row > span {
+  flex: 1;
+  min-width: 0;
+}
+.person-row strong {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.person-row small {
+  display: block;
+  font-size: 10px;
+  margin-top: 5px;
+  color: #92826a;
+}
+.person-row button {
+  padding: 5px;
+}
+.person-row .selected {
+  color: #ae5d4b;
+  background: #efd9ca;
+  border-radius: 4px;
+}
+.inventory-beads {
+  padding: 20px;
+  background: #efe4cf;
+  border-radius: 5px;
+}
+.inventory-beads strong,
+.inventory-beads span {
+  display: block;
+  margin-bottom: 8px;
+}
+.inventory-beads strong {
+  font: 18px var(--serif);
+}
+.inventory-beads span {
+  font-size: 11px;
+}
+.journey-list {
+  margin-top: 20px;
+}
+.journey-list button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+  width: 100%;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.journey-list button > span {
+  font: 22px var(--serif);
+  color: #b1a082;
+}
+.journey-list strong {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+}
+.journey-list small {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  margin-top: 6px;
+  color: #978970;
+}
+.minimap {
+  position: absolute;
+  left: 27px;
+  bottom: 30px;
+  width: 158px;
+  background: #fbf7eadc;
+  border: 1px solid #fff5df;
+  border-radius: 7px;
+  padding: 7px;
+  box-shadow: 0 4px 25px #45382212;
+  backdrop-filter: blur(10px);
+}
+.minimap-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 3px 2px 9px;
+  font-size: 10px;
+}
+.minimap-heading small {
+  margin-left: auto;
+  font-size: 7px;
+}
+.minimap > svg {
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+}
+.minimap.expanded {
+  width: 300px;
+}
+.minimap text {
+  font: 2.4px 'Be Vietnam Pro';
+  fill: #4b422f;
+  paint-order: stroke;
+  stroke: #f4efde;
+  stroke-width: 0.5px;
+}
+.minimap p {
+  font-size: 9px;
+  line-height: 1.7;
+  margin: 7px 0 2px;
+}
+.map-destination {
+  cursor: pointer;
+}
+.room-activities {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.room-activities p {
+  margin: 10px 0;
+  line-height: 1.5;
+}
+.interaction-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 172px;
+  transform: translateX(-50%);
+  background: #fff8e9ed;
+  border: 1px solid #e7d8bb;
+  border-radius: 7px;
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  box-shadow: 0 5px 20px #4a382022;
+}
+.interaction-prompt kbd {
+  padding: 4px 7px;
+  border: 1px solid #cdb48e;
+  border-radius: 3px;
+  background: #f1e4cf;
+}
+.touch-controls {
+  display: none;
+}
+.room-management {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 17px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.secondary {
+  border: 1px solid #c6ae8b;
+  border-radius: 4px;
+  padding: 12px;
+  background: #efe3cc;
+}
+@media (max-width: 1000px) {
+  .social-tools button span {
+    display: none;
+  }
+  .social-tools {
+    left: 18px;
+  }
+  .chat-box {
+    left: 18px;
+  }
+  .minimap {
+    left: 18px;
+    width: 130px;
+  }
+  .bottom-right small {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .top-actions .icon-button:first-child {
+    display: flex;
+  }
+  .room-pill {
+    top: 73px;
+    left: 12px;
+    max-width: calc(100% - 24px);
+  }
+  .room-pill button {
+    min-width: 0;
+  }
+  .room-pill button > span:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 170px;
+  }
+  .onboarding {
+    padding: 20px;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(0deg, #eeead5c9, transparent);
+  }
+  .onboarding-card {
+    width: min(100%, 370px);
+    padding: 24px;
+  }
+  .onboarding h1 {
+    font-size: 39px;
+    margin-top: 15px;
+  }
+  .onboarding h1 span {
+    font-size: 11px;
+  }
+  .onboard-caption {
+    display: none;
+  }
+  .onboard-subtitle {
+    font-size: 13px;
+    margin: 15px 0 20px;
+  }
+  .avatar-picker {
+    margin: 15px 0;
+  }
+  .entry-note {
+    font-size: 8px;
+  }
+  .onboarding-card .tiny-overline {
+    font-size: 8px;
+  }
+  .social-tools {
+    left: 12px;
+    top: 116px;
+    padding: 3px;
+    gap: 0;
+  }
+  .social-tools button {
+    padding: 8px;
+  }
+  .chat-box {
+    left: 12px;
+    top: 161px;
+    width: min(300px, calc(100% - 24px));
+    z-index: 12;
+  }
+  .chat-messages {
+    height: 180px;
+  }
+  .minimap {
+    left: auto;
+    right: 12px;
+    top: 116px;
+    bottom: auto;
+    width: 101px;
+    padding: 4px;
+  }
+  .minimap-heading {
+    font-size: 8px;
+    padding-bottom: 4px;
+    gap: 4px;
+  }
+  .minimap-heading small {
+    display: none;
+  }
+  .minimap.expanded {
+    width: 260px;
+    z-index: 11;
+  }
+  .touch-controls {
+    display: contents;
+  }
+  .joystick {
+    position: absolute;
+    left: 23px;
+    bottom: 147px;
+    width: 100px;
+    height: 100px;
+    border: 1px solid #fff6db9e;
+    border-radius: 50%;
+    background: #f9f2e244;
+    touch-action: none;
+    user-select: none;
+    display: grid;
+    place-items: center;
+    backdrop-filter: blur(3px);
+  }
+  .joystick span {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #fbf4e8c4;
+    border: 1px solid #d6c099;
+    box-shadow: 0 3px 12px #4b381d20;
+    pointer-events: none;
+  }
+  .joystick i {
+    position: absolute;
+    bottom: 7px;
+    font: 6px 'Be Vietnam Pro';
+    letter-spacing: 1px;
+    pointer-events: none;
+    color: #695b44;
+  }
+  .touch-actions {
+    position: absolute;
+    right: 19px;
+    bottom: 145px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .touch-actions button {
+    font-size: 10px;
+    padding: 13px;
+    border: 1px solid #fff3d8;
+    border-radius: 30px;
+    background: #fbf4e5b8;
+    backdrop-filter: blur(4px);
+  }
+  .touch-actions button[aria-pressed='true'] {
+    background: #aa8152;
+    color: white;
+  }
+  .interaction-prompt {
+    display: none;
+  }
+  .bottom-right {
+    display: none;
+  }
+  .meditation-card {
+    bottom: 165px !important;
+  }
+  .temple-app:has(.meditation-card) .joystick,
+  .temple-app:has(.meditation-card) .touch-actions,
+  .temple-app:has(.meditation-card) .minimap:not(.expanded) > svg {
+    display: none;
+  }
+  .bottom-center .control-hint {
+    display: none;
+  }
+  .action-bar {
+    max-width: calc(100vw - 20px);
+  }
+  .side-panel {
+    z-index: 20;
+  }
+  .bow-progress {
+    top: 210px !important;
+    left: 12px !important;
+    bottom: auto !important;
+  }
+  .toast {
+    max-width: calc(100% - 25px);
+    font-size: 10px;
+  }
+}
+@media (max-height: 700px) {
+  .onboarding {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .onboarding-card {
+    padding: 20px;
+  }
+  .onboarding h1 {
+    font-size: 32px;
+    margin-top: 10px;
+  }
+  .onboard-subtitle {
+    margin-bottom: 15px;
+  }
+  .onboarding input {
+    padding: 9px;
+    margin-bottom: 10px;
+  }
+  .avatar-picker {
+    margin: 12px 0;
+  }
+  .avatar-portrait {
+    height: 39px;
+  }
+  .entry-tabs {
+    margin-bottom: 10px;
+  }
+  .entry-room {
+    margin: 10px 0;
+  }
+  .onboarding-card .entry-note {
+    margin-top: 10px;
+  }
+  .entry-tabs button {
+    padding: 8px 0;
+  }
+}
