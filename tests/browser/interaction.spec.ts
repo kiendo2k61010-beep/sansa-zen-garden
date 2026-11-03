@@ -6,6 +6,10 @@ const state = async (page: import('@playwright/test').Page) =>
     const path = '/src/state.ts';
     return (await import(/* @vite-ignore */ path)).getState();
   });
+// These checks verify arrival/seat ownership, not network throughput. The
+// client deliberately pauses prediction while waiting for authoritative ACKs;
+// tracing WebGL on a busy host can make the journey exceed 18 seconds.
+const seatArrivalTimeout = 30000;
 test('full-room rejection preserves current room, seat and honest connection count', async ({ page }) => {
   const guests: Socket[] = [];
   try {
@@ -26,7 +30,7 @@ test('full-room rejection preserves current room, seat and honest connection cou
     await page.getByRole('button', { name: 'Bước vào sân chùa', exact: true }).click();
     await expect(page.locator('.room-count')).toHaveText('1 / 24');
     await page.getByRole('button', { name: 'Ngồi thiền', exact: true }).click();
-    await expect.poll(async () => (await state(page)).seated, { timeout: 18000 }).toBeTruthy();
+    await expect.poll(async () => (await state(page)).seated, { timeout: seatArrivalTimeout }).toBeTruthy();
     const seat = (await state(page)).seated;
     await page.getByRole('button', { name: 'Chọn phòng' }).click();
     await page.getByPlaceholder('Ví dụ: sen-hong').fill('capacity-browser');
@@ -45,7 +49,7 @@ test('a visible cushion is clickable and fullscreen toggles without blocking the
   await page.getByRole('button', { name: 'Bước vào sân chùa', exact: true }).click();
   await expect(page.locator('.room-count')).toHaveText('1 / 24');
   await page.getByRole('button', { name: 'Ngồi thiền', exact: true }).click();
-  await expect.poll(async () => (await state(page)).seated, { timeout: 18000 }).toBeTruthy();
+  await expect.poll(async () => (await state(page)).seated, { timeout: seatArrivalTimeout }).toBeTruthy();
   await page.getByRole('button', { name: 'Đứng dậy', exact: true }).last().click();
   await page.waitForTimeout(1500);
   // Use actual screen-space projection of the known view to select a cushion.
@@ -72,7 +76,7 @@ test('a visible cushion is clickable and fullscreen toggles without blocking the
     return { x: ((p.x + 1) / 2) * innerWidth, y: ((1 - p.y) / 2) * innerHeight };
   });
   await page.mouse.click(point.x, point.y);
-  await expect.poll(async () => (await state(page)).seated, { timeout: 18000 }).toBeTruthy();
+  await expect.poll(async () => (await state(page)).seated, { timeout: seatArrivalTimeout }).toBeTruthy();
   await page.getByRole('button', { name: 'Toàn màn hình', exact: true }).click();
   await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
   await page.getByRole('button', { name: 'Thoát toàn màn hình', exact: true }).click();

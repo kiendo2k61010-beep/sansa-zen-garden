@@ -26,6 +26,8 @@ Mở http://localhost:3002/?room=an-nhien&instance=0&region=apac. Server JavaScr
 
 URL Internet và thời điểm xác minh nằm trong [PUBLIC_PREVIEW.md](PUBLIC_PREVIEW.md). Bản public tạm thời cần máy này, server và tunnel tiếp tục chạy; không phải hosting 24/7. Cấu hình Render/Docker có trong [DEPLOYMENT.md](DEPLOYMENT.md).
 
+Launcher nền: sau khi build và tải tunnel bằng `node scripts/download-tunnel.mjs`, chạy `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch-services.ps1 -Mode public`. Chờ `.runtime/public-launcher.log` báo thành công rồi đọc URL mới trong `.runtime/public-preview.json`. Dùng `-Mode restart` sau lần build tiếp theo để khởi động lại server, giữ tunnel và URL đang chạy. Launcher không tự chạy lại sau khi tắt máy.
+
 ## Cách chơi
 
 | Thao tác               | Điều khiển                                                                                                                                                                                 |
@@ -56,6 +58,7 @@ DCK mặc định giữ dáng chibi gốc: đầu tròn lớn, thân và tay ch�
 - Client chỉ gửi một cập nhật vị trí đang chờ ACK; trong lúc chờ, vị trí mới nhất thay thế bản đợi gửi. Dữ liệu dự đoán chưa gửi được xóa khi có hiệu chỉnh, ngắt kết nối hoặc đổi phòng. Cách này giới hạn hàng đợi khi mạng chậm; kiểm tra tốc độ phía server vẫn giữ nguyên.
 - Ngồi, chào, lễ và cầu nguyện chờ server nhận vị trí trước khi gửi tương tác. Đích tự đi vẫn được giữ nếu nhận hiệu chỉnh muộn sau khi đã đến nơi trên client; thao tác di chuyển mới sẽ hủy đích cũ.
 - Server kiểm tra tốc độ đi 3,5 m/s/chạy 5,8 m/s, đường xuyên vật cản, ghế, khu vực cầu nguyện, đầu vào và tần suất. Session ID ngẫu nhiên riêng từng client, từ chối trùng phiên đang hoạt động.
+- Va chạm dùng chung giữa client/server, đối chiếu độ rộng áo chibi và vật thể nhìn thấy: tường bên chính điện, chân cột, đèn đá, quầy chợ và thành bồn tắm. Kiểm thử ép nhân vật vào vật cản gồm cả bước thời gian lớn; đường tới bồ đoàn và điểm tương tác vẫn đi được.
 - Phòng riêng có token mời 192 bit, không lộ trong room list/snapshot. Người có link được vào. Restart server hoặc dọn phòng trống quá hạn làm link riêng hết hiệu lực.
 - Chat 200 ký tự/tin, giữ 50 tin/phòng, giới hạn spam và lọc cơ bản. Chặn/ẩn áp dụng cục bộ theo ID phiên; chưa có tài khoản hoặc ban vĩnh viễn.
 - Thỉnh chuông/thả đèn được server kiểm tra khoảng cách và thời gian chờ rồi phát cùng sự kiện tới người cùng phòng. Hiệu ứng còn hoạt động được trả cho người mới vào; đổi phòng xóa hiệu ứng của phòng cũ.
@@ -87,8 +90,8 @@ node scripts/production-smoke.mjs
 node scripts/verify-unit.mjs
 ```
 
-Playwright dùng Chrome cài sẵn với profile headless riêng. Build trước browser tests; có bài tải frontend production từ backend 3001. Không sửa source hay chạy hai suite chung output directory khi đo. Kết quả và giới hạn: [TEST_REPORT.md](TEST_REPORT.md). Giấy phép: [ASSETS.md](ASSETS.md).
+Playwright dùng Chrome cài sẵn với profile headless riêng. Build trước browser tests; có bài tải frontend production từ backend 3001. Nếu Vite đã chạy qua các lần sửa source, khởi động lại bằng `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restart-dev-preview.ps1` trước khi chạy suite, để các bài đọc state không nhập nhầm module cũ do HMR. Không sửa source hay chạy hai suite chung output directory khi đo. Kết quả và giới hạn: [TEST_REPORT.md](TEST_REPORT.md). Giấy phép: [ASSETS.md](ASSETS.md).
 
-Sau khi tunnel chạy: `node scripts/verify-public.mjs`. Script mở hai browser context qua HTTPS, kiểm tra WSS, chuyển động, chào, thiền, chat, refresh và disconnect; chỉ ghi báo cáo thành công khi mọi assertion đạt.
+Sau khi tunnel chạy: `node scripts/verify-public.mjs`. Script mở hai browser context qua HTTPS, kiểm tra WSS, chuyển động, chào, thiền, chat, thỉnh chuông/thả đèn chung, refresh và disconnect; chỉ ghi báo cáo thành công khi mọi assertion đạt.
 
 Chưa có Redis/shared-state adapter, tài khoản, lưu tiến trình server, soak test nhiều giờ, điện thoại vật lý/Safari. Không tăng replica khi trạng thái còn nằm trong RAM. Dockerfile đã chuẩn bị; chưa build image vì Docker daemon chưa chạy.

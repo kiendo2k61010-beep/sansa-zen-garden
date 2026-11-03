@@ -12,7 +12,10 @@ export default defineConfig({
     headless: true,
     viewport: { width: 1440, height: 900 },
     screenshot: 'only-on-failure',
-    trace: 'retain-on-failure',
+    // Continuous WebGL trace capture can delay socket callbacks on this Windows
+    // runner. Keep failure screenshots; opt into tracing with --trace=on when
+    // diagnosing a specific test instead of changing application timings.
+    trace: 'off',
     launchOptions: {
       args: [
         '--disable-background-timer-throttling',

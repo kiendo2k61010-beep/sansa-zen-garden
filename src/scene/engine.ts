@@ -42,6 +42,7 @@ export class TempleEngine {
   private claiming = false;
   private interactionRevision = 0;
   private transitionBusy = false;
+  private roomChange: Promise<boolean> | null = null;
   private claimFinished: Promise<void> | null = null;
   private bowLoop = false;
   private disposed = false;
@@ -378,12 +379,23 @@ export class TempleEngine {
     });
     try {
       if (this.network.joined) {
-        const positionAck = await this.network.syncPose(this.currentPose());
+        const positionAck = await this.syncInteractionPose(revision);
         if (this.disposed || revision !== this.interactionRevision || this.pendingSeat !== id) return;
         if (!positionAck.ok) {
           this.pendingSeat = null;
           setState({ pendingSeat: null });
           toast(positionAck.error || 'Chưa đồng bộ được vị trí. Hãy thử ngồi lại.');
+          return;
+        }
+        // A late correction can move us away after claimSeat paused navigation.
+        // Resume the same destination before asking the server for the seat.
+        const destination = SEATS.find((seat) => seat.id === id)!;
+        if (Math.hypot(this.controller.x - destination.x, this.controller.z - destination.z) >= 0.38) {
+          this.controller.enabled = true;
+          if (this.controller.setTarget(destination.x, destination.z)) return;
+          this.pendingSeat = null;
+          setState({ pendingSeat: null });
+          toast('Chưa tìm được đường đến bồ đoàn này.');
           return;
         }
         const ack = await this.network.request('seat:claim', { seatId: id });
@@ -459,9 +471,7 @@ export class TempleEngine {
       if (!(await this.stand())) return;
       const revision = this.interactionRevision;
       this.controller.enabled = false;
-      const positionAck = this.network.joined
-        ? await this.network.syncPose(this.currentPose())
-        : { ok: true };
+      const positionAck = this.network.joined ? await this.syncInteractionPose(revision) : { ok: true };
       if (this.disposed || revision !== this.interactionRevision || !getState().joined) return;
       if (!positionAck.ok) {
         this.controller.enabled = true;
@@ -493,9 +503,7 @@ export class TempleEngine {
       const revision = this.interactionRevision;
       this.controller.target = null;
       this.controller.enabled = false;
-      const positionAck = this.network.joined
-        ? await this.network.syncPose(this.currentPose())
-        : { ok: true };
+      const positionAck = this.network.joined ? await this.syncInteractionPose(revision) : { ok: true };
       if (this.disposed || revision !== this.interactionRevision || !getState().joined) return;
       if (!positionAck.ok) {
         this.controller.enabled = true;
@@ -521,14 +529,15 @@ export class TempleEngine {
     setState({ beads: 0 });
   }
   async enter(spec = this.network.spec) {
+    // Finish audio startup before exposing controls. A late entrance walk must
+    // never replace an action the player already selected after onboarding.
+    await this.audio.start();
     const joined = await this.changeRoom(spec);
     if (!joined) return false;
-    setState({ started: true, joined: true });
     this.controller.enabled = true;
-    await this.audio.start();
-    setState({ sound: true });
+    this.controller.setTarget(0, 11.5);
+    setState({ started: true, joined: true, sound: true });
     this.audio.bell();
-    void this.navigate(0, 11.5);
     return true;
   }
   async createRoom(visibility: 'public' | 'private', room?: string) {
@@ -606,7 +615,7 @@ export class TempleEngine {
       if (!(await this.stand())) return;
       const revision = this.interactionRevision;
       this.controller.enabled = false;
-      const positionAck = await this.network.syncPose(this.currentPose());
+      const positionAck = await this.syncInteractionPose(revision);
       if (this.disposed || revision !== this.interactionRevision || !getState().joined) return;
       if (!positionAck.ok) {
         this.controller.enabled = true;
@@ -633,7 +642,7 @@ export class TempleEngine {
       if (!(await this.stand())) return;
       const revision = this.interactionRevision;
       this.controller.enabled = false;
-      const positionAck = await this.network.syncPose(this.currentPose());
+      const positionAck = await this.syncInteractionPose(revision);
       if (this.disposed || revision !== this.interactionRevision || !getState().joined) return;
       if (!positionAck.ok) {
         toast(positionAck.error || 'Chưa đồng bộ được vị trí.');
@@ -672,6 +681,20 @@ export class TempleEngine {
     setState({ volume: v });
   }
   async changeRoom(spec: RoomSpec) {
+    const previous = this.roomChange;
+    const change = (async () => {
+      if (previous) await previous;
+      if (this.disposed) return false;
+      return this.performRoomChange(spec);
+    })();
+    this.roomChange = change;
+    try {
+      return await change;
+    } finally {
+      if (this.roomChange === change) this.roomChange = null;
+    }
+  }
+  private async performRoomChange(spec: RoomSpec) {
     if (this.transitionBusy) return false;
     this.transitionBusy = true;
     this.interactionRevision++;
@@ -697,10 +720,11 @@ export class TempleEngine {
         }).toString();
         history.replaceState(null, '', url);
         const historyAck = await this.network.chatHistory();
-        setState({ messages: historyAck.messages || [], joined: true });
+        setState({ messages: historyAck.messages || [] });
         const worldHistory = await this.network.worldHistory();
         for (const event of worldHistory.events || []) this.worldEvent(event, true);
         toast(`Đã vào phòng ${spec.room}.`);
+        setState({ joined: true });
       }
       return ack.ok;
     } finally {
@@ -736,6 +760,14 @@ export class TempleEngine {
       actionAt: this.actionAt,
     };
   }
+  private async syncInteractionPose(revision: number) {
+    let ack = await this.network.syncPose(this.currentPose());
+    // Reconcile first, then acknowledge the authoritative position once. Never
+    // retry an action RPC, and never cross a room change or a cancelled action.
+    if (ack.corrected && !this.disposed && revision === this.interactionRevision && this.network.joined)
+      ack = await this.network.syncPose(this.currentPose());
+    return ack;
+  }
   private sendPose() {
     this.network.pose(this.currentPose());
   }
@@ -744,7 +776,7 @@ export class TempleEngine {
     const dt = Math.min((now - this.previous) / 1000 || 0.016, 0.05);
     this.previous = now;
     this.elapsed += dt;
-    this.controller.update(dt);
+    this.controller.update(dt, this.network.canPredict(this.controller.x, this.controller.z));
     if (this.controller.moving && !getState().started) setState({ started: true });
     if (this.action === 'bow') {
       if (Date.now() - this.actionAt >= BOW_DURATION) {
@@ -810,7 +842,12 @@ export class TempleEngine {
         Math.max(0, (Date.now() + this.networkOffset - data.actionAt) / 1000),
       );
     });
-    this.environment.update(this.elapsed, dt, { x: this.controller.x, z: this.controller.z });
+    this.environment.update(
+      this.elapsed,
+      dt,
+      { x: this.controller.x, z: this.controller.z },
+      this.camera.position,
+    );
     if (this.marker.visible) {
       const pulse = 1 + Math.sin(this.elapsed * 5) * 0.08;
       this.marker.scale.setScalar(pulse);

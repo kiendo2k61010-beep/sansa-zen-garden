@@ -780,7 +780,8 @@ function BeadsPanel({ engine }: { engine: TempleEngine | null }) {
 function SettingsPanel({ engine }: { engine: TempleEngine | null }) {
   const game = useGame();
   const [name, setName] = useState(game.name),
-    [color, setColor] = useState(game.color);
+    [color, setColor] = useState(game.color),
+    [saving, setSaving] = useState(false);
   return (
     <>
       <PanelHeading
@@ -789,10 +790,16 @@ function SettingsPanel({ engine }: { engine: TempleEngine | null }) {
         description="Tên gọi nhẹ nhàng, một màu áo yêu thích."
       />
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          void engine?.updateIdentity(name.trim() || 'Mây an nhiên', color);
-          toast('Đã cập nhật tên và màu áo.');
+          if (saving || !engine) return;
+          setSaving(true);
+          try {
+            await engine.updateIdentity(name.trim() || 'Mây an nhiên', color);
+            toast('Đã cập nhật tên và màu áo.');
+          } finally {
+            setSaving(false);
+          }
         }}
       >
         <label>
@@ -816,7 +823,7 @@ function SettingsPanel({ engine }: { engine: TempleEngine | null }) {
             ))}
           </div>
         </label>
-        <button className="primary">
+        <button className="primary" disabled={saving} aria-busy={saving}>
           Lưu thay đổi <Check size={17} />
         </button>
       </form>

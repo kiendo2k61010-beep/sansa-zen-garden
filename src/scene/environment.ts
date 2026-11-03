@@ -6,7 +6,7 @@ import { createGardens } from './nature';
 export interface Environment {
   group: THREE.Group;
   pickables: THREE.Object3D[];
-  update: (time: number, dt: number, player: { x: number; z: number }) => void;
+  update: (time: number, dt: number, player: { x: number; z: number }, camera?: THREE.Vector3) => void;
   setOccupied: (seats: Record<string, string>) => void;
   setQuality: (quality: 'low' | 'medium' | 'high') => void;
   triggerInteraction: (kind: WorldInteractionKind, elapsed: number) => void;
@@ -173,8 +173,8 @@ export function createEnvironment(): Environment {
     resetInteractions() {
       gardens.resetInteractions();
     },
-    update(time, dt, player) {
-      gardens.update(time, player);
+    update(time, dt, player, camera) {
+      gardens.update(time, player, camera);
       const target = Math.abs(player.x) < 10.8 && player.z < 9.4 && player.z > -14.5 ? 0 : 1;
       roofOpacity = THREE.MathUtils.damp(roofOpacity, target, 3.5, dt);
       architecture.roof.visible = roofOpacity > 0.025;

@@ -2,8 +2,19 @@ import { chromium, expect } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 const config = JSON.parse((await readFile('.runtime/public-preview.json', 'utf8')).replace(/^\uFEFF/, ''));
 const origin = process.env.PUBLIC_TEST_ORIGIN || config.origin;
-const healthResponse = await fetch(origin + '/api/health', { signal: AbortSignal.timeout(20000) });
-if (!healthResponse.ok) throw Error(`Health HTTP ${healthResponse.status}`);
+let healthResponse;
+let healthError;
+for (let attempt = 0; attempt < 8; attempt++) {
+  try {
+    healthResponse = await fetch(origin + '/api/health', { signal: AbortSignal.timeout(5000) });
+    if (healthResponse.ok) break;
+    healthError = `HTTP ${healthResponse.status}`;
+  } catch (error) {
+    healthError = error.message;
+  }
+  await new Promise((resolve) => setTimeout(resolve, 750));
+}
+if (!healthResponse?.ok) throw Error(`Public health unavailable: ${healthError}`);
 const health = await healthResponse.json();
 const browser = await chromium.launch({
   channel: 'chrome',

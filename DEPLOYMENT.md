@@ -19,6 +19,23 @@ Mở `http://localhost:3002/?room=an-nhien&instance=0&region=apac`. Đây là UR
 
 Có thể chép `.env.example` thành `.env`, điền giá trị thật rồi dùng `node --env-file=.env dist-server/index.mjs`. `npm start` không tự đọc `.env`: trên hosting hãy đặt biến trong dashboard.
 
+## Chia sẻ Internet tạm thời từ máy này
+
+Từ thư mục dự án, sau khi build:
+
+```powershell
+node scripts/download-tunnel.mjs
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch-services.ps1 -Mode public
+```
+
+Launcher trả về PID và chạy server cùng Cloudflare Quick Tunnel trong nền, ở cửa sổ ẩn. Chờ `.runtime/public-launcher.log` ghi thành công rồi đọc `.runtime/public-preview.json` để lấy URL của lần chạy hiện tại. Khi launcher chưa xong, file JSON có thể còn URL cũ. Kiểm tra bằng `node scripts/verify-public.mjs` trước khi chia sẻ. Xem URL và thời điểm xác minh gần nhất trong [PUBLIC_PREVIEW.md](PUBLIC_PREVIEW.md).
+
+Sau khi thay source và chạy `npm run build`, dùng `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch-services.ps1 -Mode restart` để thay server bằng build mới và giữ tunnel/URL đang hoạt động. Lệnh này yêu cầu tunnel được ghi trong `.runtime/public-preview.json` vẫn chạy. Restart server xóa phòng riêng và chat trong RAM.
+
+Dừng cả server và tunnel bằng `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-public-preview.ps1`. Nếu tunnel đã dừng, lần chạy `-Mode public` tiếp theo có thể cấp URL khác. Các script kiểm tra PID/cổng trước khi dừng tiến trình; không dùng lệnh dừng mọi process Node.
+
+Máy phải bật, có Internet và giữ hai tiến trình chạy. Launcher cho phép đóng cửa sổ terminal, nhưng không tạo Windows service, tác vụ khởi động cùng máy hoặc quy tắc Windows Firewall. Đây là link tạm thời; chưa triển khai hosting 24/7 hoặc một dịch vụ Render thực tế.
+
 ## Render: một Web Service
 
 1. Đưa repository này vào Git provider mà tài khoản Render của bạn có quyền đọc. Không đưa `.env`, token hosting, hoặc dữ liệu riêng lên repository.
@@ -59,8 +76,8 @@ Origin được kiểm tra cho cả polling và WebSocket handshake, cho phép c
 
 Khi trình duyệt phát `pagehide` để điều hướng/đóng trang, client chủ động disconnect để giải phóng nhân vật và bồ đoàn. Trang được khôi phục từ BFCache (`pageshow.persisted`) kết nối lại với cùng session trong bộ nhớ. Nếu mạng mất đột ngột, trình duyệt bị kill hoặc tín hiệu đóng không đến server, việc phát hiện phụ thuộc heartbeat: `pingInterval=15 giây` cộng `pingTimeout=10 giây`, tức thường trong khoảng 25 giây kể từ lần trao đổi cuối (có thể trễ thêm nếu event loop bị nghẽn). Không giảm heartbeat chỉ để làm đẹp số đo trên máy local vì kết nối điện thoại có thể bị gián đoạn ngắn.
 
-Trước khi gửi link: kiểm tra health, refresh URL phòng trực tiếp, hai avatar độc lập, di chuyển/chào/ngồi đồng bộ, phòng riêng không lộ vào public list, chat không xuyên phòng, mất mạng/kết nối lại không nhân đôi. `npm test` chạy các kiểm thử server/network lặp lại được, gồm 20 Socket.IO client thực. Kiểm thử này không tự chứng minh FPS của 20 trình duyệt hay chất lượng đường truyền Internet.
+Trước khi gửi link: kiểm tra health, refresh URL phòng trực tiếp, hai avatar độc lập, di chuyển/chào/ngồi và thỉnh chuông/thả đèn đồng bộ, phòng riêng không lộ vào public list, chat không xuyên phòng, mất mạng/kết nối lại không nhân đôi. `npm test` chạy các kiểm thử server/network lặp lại được, gồm 20 Socket.IO client thực. Kiểm thử này không tự chứng minh FPS của 20 trình duyệt hay chất lượng đường truyền Internet.
 
 File cấu hình sẵn sàng triển khai; việc có domain public hoạt động chỉ được xác nhận sau khi deployment thật hoàn tất và được kiểm tra. URL công khai tạm thời hoặc kết quả triển khai thực tế, nếu có, được ghi riêng trong báo cáo kiểm thử của phiên làm việc.
 
-Đã kiểm tra bản Node production cục bộ với 20 socket client, 700 cập nhật vị trí được chấp nhận và 0 cập nhật bị từ chối trong lần chạy ghi tại `artifacts/production-server-report.json`. Script lặp lại: `node artifacts/production-smoke.mjs` sau khi build. Dockerfile chưa được build thử trong phiên này vì Docker daemon không chạy; không xem phần cấu hình Docker là bằng chứng image đã chạy thành công.
+Đã kiểm tra bản Node production cục bộ với 20 socket client, 700 cập nhật vị trí được chấp nhận và 0 cập nhật bị từ chối trong lần chạy ghi tại `artifacts/production-server-report.json`. Script lặp lại: `node scripts/production-smoke.mjs` sau khi build. Dockerfile chưa được build thử trong phiên này vì Docker daemon không chạy; không xem phần cấu hình Docker là bằng chứng image đã chạy thành công.

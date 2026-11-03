@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
 import { createTempleServer } from '../server/app.ts';
 import { TempleNetwork } from '../src/network.ts';
-import { INTERACTION_POINTS, type Pose, type Snapshot, type WorldEvent } from '../shared/world.ts';
+import { INTERACTION_POINTS, type Ack, type Pose, type Snapshot, type WorldEvent } from '../shared/world.ts';
 
 let server: ReturnType<typeof createTempleServer>;
 let url: string;
@@ -61,6 +61,24 @@ test('onboarding opens a connection without joining and each client gets a fresh
   await waitFor(() => second.states.at(-1)?.players.length === 1);
 });
 
+test('a rejected WebSocket handshake falls back to polling and supports joining and actions', async () => {
+  server.io.engine.opts.transports = ['polling'];
+  let rejectedWebSockets = 0;
+  server.io.engine.on('connection_error', (error) => {
+    if (new URL(error.req.url, url).searchParams.get('transport') === 'websocket') rejectedWebSockets++;
+  });
+  const { network } = create();
+  const joined = await network.join();
+  assert.equal(joined.ok, true, joined.error);
+  assert.ok(rejectedWebSockets > 0, 'the initial WebSocket attempt must actually be rejected');
+  assert.equal(network.socket.io.engine.transport.name, 'polling');
+  assert.equal(network.joined, true);
+  const action = await network.request('action', { action: 'wave' });
+  assert.equal(action.ok, true, action.error);
+  assert.equal(action.snapshot!.players.find((player) => player.id === network.socket.id)!.action, 'wave');
+  assert.equal([...server.rooms.values()][0].players.get(network.socket.id!)!.action, 'wave');
+});
+
 test('delayed pose acknowledgements coalesce predictions and a correction cannot replay a stale backlog', async () => {
   let poseRequests = 0;
   let firstReleased = false;
@@ -110,6 +128,41 @@ test('delayed pose acknowledgements coalesce predictions and a correction cannot
   }
 });
 
+test('sustained 700 ms pose latency pauses prediction and resumes progress without repeated corrections', async () => {
+  let poseRequests = 0;
+  let corrections = 0;
+  let pausedFrames = 0;
+  server.io.on('connection', (socket) => {
+    socket.use(([event], next) => {
+      if (event !== 'pose') return next();
+      poseRequests++;
+      setTimeout(next, 700);
+    });
+  });
+  const { network } = create(false, () => corrections++);
+  const joined = await network.join();
+  assert.equal(joined.ok, true);
+  const self = joined.snapshot!.players.find((player) => player.id === joined.snapshot!.selfId)!;
+  let z = self.z;
+  const timer = setInterval(() => {
+    // The controller asks before advancing, so one frame can straddle the
+    // prediction boundary. Match the normal walking and pose-send cadence.
+    if (network.canPredict(self.x, z)) z += 3.5 * 0.08;
+    else pausedFrames++;
+    network.pose({ x: self.x, z, rotation: 0, action: 'walk', actionAt: Date.now() });
+  }, 80);
+  try {
+    await sleep(3600);
+    assert.ok(pausedFrames > 0, 'prediction must stop outrunning the last acknowledged position');
+    assert.equal(corrections, 0, 'a slow connection must not repeatedly snap the avatar backwards');
+    const player = [...server.rooms.values()][0].players.get(network.socket.id!)!;
+    assert.ok(player.z > self.z + 3, 'acknowledgements must resume movement despite sustained latency');
+    assert.ok(poseRequests >= 4 && poseRequests <= 6, 'one delayed pose at a time must still make progress');
+  } finally {
+    clearInterval(timer);
+  }
+});
+
 test('interactions can await the latest coalesced position after a delayed packet', async () => {
   const received: string[] = [];
   server.io.on('connection', (socket) => {
@@ -138,6 +191,29 @@ test('interactions can await the latest coalesced position after a delayed packe
   assert.equal(action.ok, true);
   assert.deepEqual(received, ['pose', 'pose', 'action']);
   assert.equal(action.snapshot!.players[0].z, self.z + 1);
+});
+
+test('a delayed rejection ACK cannot cancel a pose queued after its correction', async () => {
+  let delayed = false;
+  server.io.on('connection', (socket) => {
+    socket.use((packet, next) => {
+      if (packet[0] === 'pose' && !delayed) {
+        delayed = true;
+        const acknowledge = packet[2];
+        packet[2] = (ack: Ack) => setTimeout(() => acknowledge(ack), 100);
+      }
+      next();
+    });
+  });
+  const { network } = create();
+  const joined = await network.join();
+  const self = joined.snapshot!.players.find((player) => player.id === joined.snapshot!.selfId)!;
+  const pose = { x: self.x, z: self.z, rotation: 0, action: 'idle' as const, actionAt: Date.now() };
+  const correction = await network.syncPose({ ...pose, x: 100 });
+  assert.equal(correction.corrected, true);
+  assert.equal((await network.syncPose(pose)).ok, true);
+  await sleep(150);
+  assert.equal((await network.syncPose(pose)).ok, true);
 });
 
 test('explicit join can wait for connection, private room invites survive joins and chat history is available', async () => {

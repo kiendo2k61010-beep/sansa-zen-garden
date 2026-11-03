@@ -15,6 +15,7 @@ export interface NetworkOptions {
   avatar?: AvatarStyle;
   url?: string;
 }
+export type PoseAck = Ack & { corrected?: boolean };
 export class TempleNetwork {
   socket: Socket;
   joined = false;
@@ -36,7 +37,8 @@ export class TempleNetwork {
   private pendingPose: { pose: Pose; sequence: number } | null = null;
   private poseFlight: number | null = null;
   private poseSequence = 0;
-  private poseWaiters = new Map<number, (ack: Ack) => void>();
+  private acknowledgedPosition: { x: number; z: number } | null = null;
+  private poseWaiters = new Map<number, (ack: PoseAck) => void>();
   private onPageHide = () => {
     // Explicitly notify the server before navigation; the transport may otherwise linger until its heartbeat expires.
     if (!this.disposed) this.socket.disconnect();
@@ -67,10 +69,12 @@ export class TempleNetwork {
     this.wantsJoin = options.autoJoin ?? true;
     this.socket = io(options.url, {
       autoConnect: false,
+      transports: ['websocket', 'polling'],
+      tryAllTransports: true,
       reconnection: true,
       reconnectionDelay: 900,
       reconnectionDelayMax: 5000,
-      timeout: 4000,
+      timeout: 10000,
     });
     this.socket.on('connect', () => {
       if (this.wantsJoin && !this.joining) void this.join();
@@ -97,10 +101,15 @@ export class TempleNetwork {
     });
     this.socket.on('correction', (pose: Pose) => {
       if (this.joined) {
+        this.acknowledgedPosition = { x: pose.x, z: pose.z };
         // Predictions queued before reconciliation no longer describe our position.
         this.pendingPose = null;
+        // The correction settles the rejected flight. Its ACK may arrive in a
+        // later packet and must not cancel a new pose queued after reconciliation.
+        this.poseFlight = null;
         this.resolvePoses(Infinity, {
           ok: false,
+          corrected: true,
           error: 'Vị trí vừa được đồng bộ lại. Hãy thử tương tác lại.',
         });
         handlers.correction?.(pose);
@@ -153,12 +162,14 @@ export class TempleNetwork {
     if (ack.ok && ack.snapshot) {
       this.joined = true;
       this.lastSnapshot = ack.snapshot;
+      this.anchorPosition(ack.snapshot);
       this.handlers.status('online');
       this.handlers.snapshot(ack.snapshot);
     } else if (wasJoined && this.socket.connected && previousSnapshot) {
       this.spec = previousSpec;
       this.joined = true;
       this.lastSnapshot = previousSnapshot;
+      this.anchorPosition(previousSnapshot);
       this.handlers.status('online');
       this.handlers.snapshot(previousSnapshot);
       this.handlers.error(ack.error || 'Chưa thể đổi phòng. Bạn vẫn ở phòng trước.');
@@ -177,7 +188,7 @@ export class TempleNetwork {
         this.socket.off('connect', finish);
         resolve();
       };
-      const timer = setTimeout(finish, 5000);
+      const timer = setTimeout(finish, 12000);
       this.socket.once('connect', finish);
     });
   }
@@ -231,10 +242,20 @@ export class TempleNetwork {
   pose(pose: Pose) {
     this.queuePose(pose);
   }
-  syncPose(pose: Pose): Promise<Ack> {
+  private anchorPosition(snapshot: Snapshot) {
+    const self = snapshot.players.find((player) => player.id === snapshot.selfId);
+    this.acknowledgedPosition = self ? { x: self.x, z: self.z } : null;
+  }
+  canPredict(x: number, z: number) {
+    const anchor = this.acknowledgedPosition;
+    // Stay inside the server's 0.55-second walking credit even if an entire
+    // frame of running follows this check. Resume as soon as its ACK arrives.
+    return !this.joined || !anchor || Math.hypot(x - anchor.x, z - anchor.z) < 1.4;
+  }
+  syncPose(pose: Pose): Promise<PoseAck> {
     return new Promise((resolve) => this.queuePose(pose, resolve));
   }
-  private queuePose(pose: Pose, resolve?: (ack: Ack) => void) {
+  private queuePose(pose: Pose, resolve?: (ack: PoseAck) => void) {
     if (!this.joined || !this.socket.connected) {
       resolve?.({ ok: false, error: 'Máy chủ chưa kết nối.' });
       return;
@@ -246,7 +267,7 @@ export class TempleNetwork {
     this.pendingPose = { pose: { ...pose }, sequence };
     this.flushPose();
   }
-  private resolvePoses(through: number, ack: Ack) {
+  private resolvePoses(through: number, ack: PoseAck) {
     for (const [sequence, resolve] of this.poseWaiters) {
       if (sequence <= through) {
         this.poseWaiters.delete(sequence);
@@ -257,6 +278,7 @@ export class TempleNetwork {
   private resetPoses() {
     this.pendingPose = null;
     this.poseFlight = null;
+    this.acknowledgedPosition = null;
     this.resolvePoses(Infinity, { ok: false, error: 'Phiên di chuyển đã thay đổi.' });
   }
   private flushPose() {
@@ -280,6 +302,7 @@ export class TempleNetwork {
         this.resolvePoses(Infinity, ack || { ok: false, error: 'Phản hồi vị trí không hợp lệ.' });
         return;
       }
+      this.acknowledgedPosition = { x: pose.x, z: pose.z };
       this.resolvePoses(sequence, ack);
       this.flushPose();
     });

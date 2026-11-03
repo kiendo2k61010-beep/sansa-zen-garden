@@ -125,7 +125,9 @@ test('controller follows obstacle routes to completion without collision or corn
   }
 });
 
-function withController(run: (controller: PlayerController, events: EventTarget) => void) {
+function withController(
+  run: (controller: PlayerController, events: EventTarget, camera: PerspectiveCamera) => void,
+) {
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const previousHTMLElement = Object.getOwnPropertyDescriptor(globalThis, 'HTMLElement');
   class InputElement extends EventTarget {
@@ -136,9 +138,10 @@ function withController(run: (controller: PlayerController, events: EventTarget)
   Object.defineProperty(globalThis, 'window', { value: events, configurable: true });
   Object.defineProperty(globalThis, 'HTMLElement', { value: InputElement, configurable: true });
   const canvas = Object.assign(new EventTarget(), { style: {} }) as unknown as HTMLCanvasElement;
-  const controller = new PlayerController(new PerspectiveCamera(), canvas, () => {});
+  const camera = new PerspectiveCamera();
+  const controller = new PlayerController(camera, canvas, () => {});
   try {
-    run(controller, events);
+    run(controller, events, camera);
   } finally {
     controller.dispose();
     if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
@@ -244,6 +247,35 @@ test('server reconciliation preserves the destination and held movement input', 
     controller.update(0.05);
     assert.equal(controller.moving, true);
     assert.ok(controller.z < 17.1);
+  });
+});
+
+test('prediction pause preserves navigation and held keys while the camera keeps updating', () => {
+  withController((controller, events, camera) => {
+    assert.ok(controller.setTarget(0, 12));
+    const cameraBefore = camera.position.clone();
+    for (let frame = 0; frame < 30; frame++) controller.update(0.05, false);
+    assert.deepEqual({ x: controller.x, z: controller.z }, { x: 0, z: 17 });
+    assert.deepEqual(controller.target, { x: 0, z: 12 });
+    assert.equal(controller.enabled, true);
+    assert.equal(controller.moving, false);
+    assert.ok(camera.position.distanceTo(cameraBefore) > 0.1, 'network latency must not freeze the camera');
+    controller.update(0.05, true);
+    assert.ok(controller.z < 17, 'the original destination resumes without another click');
+
+    controller.teleport(0, 17);
+    key(events, 'keydown', 'KeyW');
+    key(events, 'keydown', 'ShiftLeft');
+    for (let frame = 0; frame < 30; frame++) controller.update(0.05, false);
+    assert.deepEqual({ x: controller.x, z: controller.z }, { x: 0, z: 17 });
+    assert.equal(controller.moving, false);
+    controller.update(0.05, true);
+    assert.ok(Math.abs(Math.hypot(controller.x, controller.z - 17) - 0.29) < 1e-8);
+    assert.equal(controller.running, true, 'held movement and Shift survive the prediction pause');
+    key(events, 'keyup', 'KeyW');
+    key(events, 'keyup', 'ShiftLeft');
+    controller.update(0.05, true);
+    assert.equal(controller.moving, false);
   });
 });
 

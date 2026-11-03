@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { WorldInteractionKind } from '../../shared/world';
+import { groundHeight, type WorldInteractionKind } from '../../shared/world';
 import {
   bake,
   beam,
@@ -594,12 +594,13 @@ export function createGardens() {
   crowns.computeBoundingSphere();
   living.add(trunks, crowns, farCrowns);
   // Two sculptural courtyard trees, each matching a shared collision footprint.
-  const treeLeaves = new THREE.Group();
+  const courtyardCanopies: { group: THREE.Group; bounds: THREE.Box3 }[] = [];
   for (const tree of [
     { x: -12, z: 17, s: 1.1, flower: true },
     { x: 10, z: 22, s: 1.3, flower: false },
   ]) {
     const { x, z, s } = tree;
+    const treeLeaves = new THREE.Group();
     beam(source, mats.woodDark, v(x, 0.1, z), v(x - 0.25 * s, 3.8 * s, z + 0.2), 0.28 * s);
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * 6.28,
@@ -628,8 +629,14 @@ export function createGardens() {
         [rand(), a, 0],
       );
     }
+    const canopy = bake(treeLeaves);
+    canopy.name = tree.flower ? 'courtyard-blossom-canopy' : 'courtyard-lotus-canopy';
+    courtyardCanopies.push({
+      group: canopy,
+      bounds: new THREE.Box3().setFromObject(canopy).expandByScalar(0.6),
+    });
+    living.add(canopy);
   }
-  living.add(bake(treeLeaves));
   // Tall bamboo in the rear garden uses slender visible stalks and pointed leaves.
   for (let i = 0; i < 34; i++) {
     const x = -24 + rand() * 48,
@@ -751,11 +758,30 @@ export function createGardens() {
   };
   let quality: 'low' | 'medium' | 'high' = 'high',
     lastLodUpdate = -1;
+  // Only foreground foliage is removed from the view corridor. Tree trunks,
+  // walkable space and collision footprints remain fixed while orbiting.
+  const viewRay = new THREE.Ray(),
+    viewDirection = new THREE.Vector3(),
+    viewHit = new THREE.Vector3();
+  let viewLengthSquared = 0;
+  const crownBounds = treePositions.map(
+    ({ x, z, s }) =>
+      new THREE.Box3(
+        new THREE.Vector3(x - s * 1.9 - 0.6, s * 1.5 - 0.6, z - s * 1.9 - 0.6),
+        new THREE.Vector3(x + s * 1.9 + 0.6, s * 7 + 0.6, z + s * 1.9 + 0.6),
+      ),
+  );
+  const crownColors = [new THREE.Color('#526f58'), new THREE.Color('#668166')];
+  const blocksPlayer = (bounds: THREE.Box3) =>
+    viewLengthSquared > 0 &&
+    viewRay.intersectBox(bounds, viewHit) !== null &&
+    viewHit.distanceToSquared(viewRay.origin) <= viewLengthSquared;
   function updateTreeLod(player: { x: number; z: number }) {
     let near = 0,
       far = 0;
     const distance = quality === 'low' ? 22 : quality === 'medium' ? 34 : 46;
     treePositions.forEach((t, index) => {
+      if (blocksPlayer(crownBounds[index])) return;
       const close = Math.hypot(t.x - player.x, t.z - player.z) < distance;
       const mesh = close ? crowns : farCrowns,
         tiers = close ? 4 : 2;
@@ -767,7 +793,7 @@ export function createGardens() {
         dummy.updateMatrix();
         const at = close ? near++ : far++;
         mesh.setMatrixAt(at, dummy.matrix);
-        mesh.setColorAt(at, new THREE.Color(k % 2 === 0 ? '#526f58' : '#668166'));
+        mesh.setColorAt(at, crownColors[k % 2]);
       }
     });
     for (const [mesh, count] of [
@@ -804,14 +830,22 @@ export function createGardens() {
       zones.setQuality(quality);
       lastLodUpdate = -1;
     },
-    update(time: number, player: { x: number; z: number }) {
+    update(time: number, player: { x: number; z: number }, camera?: THREE.Vector3) {
       lastTime = time;
       animateInteractions(time);
       wind.value = time;
       leafWind.value = time;
       waterTime.value = time;
       zones.update(time, player);
-      if (lastLodUpdate < 0 || time - lastLodUpdate > 0.5) {
+      viewLengthSquared = 0;
+      if (camera) {
+        viewRay.origin.set(player.x, groundHeight(player.x, player.z) + 0.95, player.z);
+        viewDirection.subVectors(camera, viewRay.origin);
+        viewLengthSquared = viewDirection.lengthSq();
+        viewRay.direction.copy(viewDirection).normalize();
+      }
+      for (const canopy of courtyardCanopies) canopy.group.visible = !blocksPlayer(canopy.bounds);
+      if (lastLodUpdate < 0 || time < lastLodUpdate || time - lastLodUpdate > 0.1) {
         updateTreeLod(player);
         lastLodUpdate = time;
       }

@@ -25,12 +25,16 @@ test('private invitations, social actions, prayer, map, rooms and refresh across
   const errors: string[] = [];
   const navigationSamples: unknown[] = [];
   const corrections: unknown[] = [];
-  one.on('websocket', (ws) =>
+  const socketFrames: unknown[] = [];
+  one.on('websocket', (ws) => {
+    ws.on('framesent', ({ payload }) => socketFrames.push({ at: Date.now(), sent: payload.toString() }));
+    ws.on('close', () => socketFrames.push({ at: Date.now(), closed: true }));
     ws.on('framereceived', ({ payload }) => {
       const raw = payload.toString();
+      if (!raw.includes('"snapshot"')) socketFrames.push({ at: Date.now(), received: raw });
       if (raw.startsWith('42["correction"')) corrections.push(JSON.parse(raw.slice(2))[1]);
-    }),
-  );
+    });
+  });
   one.on('pageerror', (e) => errors.push(e.message));
   two.on('pageerror', (e) => errors.push(e.message));
   try {
@@ -106,6 +110,7 @@ test('private invitations, social actions, prayer, map, rooms and refresh across
     await expect(two.locator('.room-count')).toHaveText('1 / 24');
     expect(errors).toEqual([]);
   } catch (error) {
+    await writeFile('artifacts/private-network-diagnostic.json', JSON.stringify(socketFrames, null, 2));
     console.log(JSON.stringify({ navigationSamples, corrections, errors }));
     throw error;
   } finally {

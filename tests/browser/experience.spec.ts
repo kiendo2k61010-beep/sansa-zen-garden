@@ -72,6 +72,17 @@ test('two browser tabs share motion, gestures, occupied seats, disconnect and re
   await expect.poll(() => Object.keys(second.latest?.seats || {})).toContain(occupied);
   await page.waitForTimeout(1800);
   await page.screenshot({ path: 'artifacts/desktop-meditation.png' });
+  // Force one genuine server correction at the second player's seat boundary.
+  // The click must still complete without another user action.
+  await secondPage.evaluate(async () => {
+    const path = '/src/network.ts';
+    const { TempleNetwork } = await import(/* @vite-ignore */ path);
+    const sync = TempleNetwork.prototype.syncPose;
+    TempleNetwork.prototype.syncPose = function (pose: any) {
+      TempleNetwork.prototype.syncPose = sync;
+      return sync.call(this, { ...pose, x: 100 });
+    };
+  });
   await secondPage.getByRole('button', { name: 'Ngồi thiền', exact: true }).click();
   await expect.poll(async () => (await state(secondPage)).seated, { timeout: 20000 }).toBeTruthy();
   expect((await state(secondPage)).seated).not.toBe(occupied);

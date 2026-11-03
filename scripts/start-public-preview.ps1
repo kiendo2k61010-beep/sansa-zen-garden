@@ -6,7 +6,9 @@ New-Item -ItemType Directory -Force -Path $runtimePath | Out-Null
 $statePath = Join-Path $runtimePath 'public-preview.json'
 if (Test-Path -LiteralPath $statePath) {
   $previous = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
-  if ((Get-Process -Id $previous.serverPid -ErrorAction SilentlyContinue) -and (Get-Process -Id $previous.tunnelPid -ErrorAction SilentlyContinue)) {
+  $oldServer = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $previous.serverPid)
+  $oldTunnel = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $previous.tunnelPid)
+  if ($oldServer -and $oldTunnel -and $oldServer.Name -eq 'node.exe' -and $oldServer.CommandLine.Contains('dist-server/index.mjs') -and $oldTunnel.Name -eq 'cloudflared.exe' -and $oldTunnel.CommandLine.Contains('http://127.0.0.1:3002')) {
     Write-Output ('Preview already running: ' + $previous.url)
     exit 0
   }
@@ -21,7 +23,8 @@ $origin = $null
 for ($attempt = 0; $attempt -lt 90; $attempt++) {
   Start-Sleep -Milliseconds 500
   $logText = Get-Content -Raw -LiteralPath $tunnelLog -ErrorAction SilentlyContinue
-  if ($logText -match 'https://[a-z0-9-]+\.trycloudflare\.com') { $origin = $Matches[0]; break }
+  # An error can contain https://api.trycloudflare.com; it is not a share URL.
+  if ($logText -match 'https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com') { $origin = $Matches[0]; break }
   if ($tunnel.HasExited) { throw ('Tunnel exited; inspect ' + $tunnelLog) }
 }
 if (-not $origin) { Stop-Process -Id $tunnel.Id; throw 'Tunnel did not return a public URL.' }

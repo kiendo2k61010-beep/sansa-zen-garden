@@ -37,9 +37,14 @@ test('players share bell and lantern interactions, late join restores active eff
         .poll(
           async () => {
             const s = await state(one);
-            return Math.hypot(s.x - x, s.z - z);
+            const authoritative = s.players.find((player: { id: string }) => player.id === s.selfId);
+            return authoritative
+              ? Math.max(Math.hypot(s.x - x, s.z - z), Math.hypot(authoritative.x - x, authoritative.z - z))
+              : Infinity;
           },
-          { timeout: 25000 },
+          // Account for bounded prediction while awaiting ACKs on long routes.
+          // Both local and server positions still have to reach the real target.
+          { timeout: 45000 },
         )
         .toBeLessThan(0.35);
       await one.keyboard.press('KeyE');

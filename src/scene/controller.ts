@@ -378,11 +378,11 @@ export class PlayerController {
     }
   }
 
-  update(dt: number) {
+  update(dt: number, predictMovement = true) {
     dt = Number.isFinite(dt) ? Math.min(Math.max(dt, 0), 0.05) : 0;
     this.moving = false;
     this.running = false;
-    if (this.enabled) {
+    if (this.enabled && predictMovement) {
       let dx = 0,
         dz = 0;
       const keyboardForward =
@@ -460,7 +460,7 @@ export class PlayerController {
           this.rotation += difference * (1 - Math.exp(-dt * 13));
         }
       }
-    } else this.clearControls();
+    } else if (!this.enabled) this.clearControls();
     const desiredFocus = this.overview
       ? new THREE.Vector3(-4, 1.6, 0)
       : new THREE.Vector3(

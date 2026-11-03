@@ -310,11 +310,13 @@ test('interaction reset and stale ages hide effects without allocating replaceme
   const bell = environment.group.getObjectByName('shared-temple-bell')!;
   const lantern = environment.group.getObjectByName('shared-floating-lantern')!;
   const resources = () => {
-    const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
+    const geometries = new Set<THREE.BufferGeometry>(),
+      materials = new Set<THREE.Material>();
     environment.group.traverse((object) => {
       if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
         geometries.add(object.geometry);
-        for (const material of Array.isArray(object.material) ? object.material : [object.material]) materials.add(material);
+        for (const material of Array.isArray(object.material) ? object.material : [object.material])
+          materials.add(material);
       }
     });
     return { geometries, materials };
@@ -348,4 +350,46 @@ test('interaction reset and stale ages hide effects without allocating replaceme
   const after = resources();
   assert.deepEqual(after.geometries, before.geometries);
   assert.deepEqual(after.materials, before.materials);
+});
+
+test('foreground courtyard canopy reveals the pond player and returns when the camera orbits away', () => {
+  const lotus = environment.group.getObjectByName('courtyard-lotus-canopy')!;
+  const blossom = environment.group.getObjectByName('courtyard-blossom-canopy')!;
+  assert.ok(lotus && blossom);
+  const player = { x: 8.4, z: 13 };
+  const objects: string[] = [];
+  environment.group.traverse((object) => objects.push(object.uuid));
+  environment.update(600, 1 / 60, player, new THREE.Vector3(15.35, 11.4, 28.56));
+  assert.equal(lotus.visible, false, 'Pond follow camera must not look through an opaque tree canopy');
+  assert.equal(blossom.visible, true, 'Unrelated courtyard foliage stays visible');
+  environment.update(600.02, 1 / 60, player, new THREE.Vector3(1.45, 11.4, -2.56));
+  assert.equal(lotus.visible, true, 'Orbiting away restores foliage immediately');
+  const after: string[] = [];
+  environment.group.traverse((object) => after.push(object.uuid));
+  assert.deepEqual(after, objects, 'Camera changes reuse scene objects');
+});
+
+test('foreground forest crowns clear the camera corridor at every quality and restore without moving trunks', () => {
+  const trunks = environment.group.getObjectByName('forest-trunks') as THREE.InstancedMesh;
+  const near = environment.group.getObjectByName('forest-near-crowns') as THREE.InstancedMesh;
+  const far = environment.group.getObjectByName('forest-distant-crowns') as THREE.InstancedMesh;
+  const matrix = new THREE.Matrix4();
+  trunks.getMatrixAt(0, matrix);
+  const x = matrix.elements[12],
+    z = matrix.elements[14],
+    scale = matrix.elements[0];
+  const player = { x, z: z - 8 };
+  const camera = new THREE.Vector3(x, scale * 8, z + 8);
+  const originalTrunks = Array.from(trunks.instanceMatrix.array);
+  for (const [index, quality] of (['low', 'medium', 'high'] as const).entries()) {
+    environment.setQuality(quality);
+    const time = 700 + index * 10;
+    environment.update(time, 1 / 60, player);
+    const allCrowns = near.count + far.count;
+    environment.update(time + 1, 1 / 60, player, camera);
+    assert.ok(near.count + far.count < allCrowns, `${quality}: blocking crown must be omitted`);
+    environment.update(time + 2, 1 / 60, player);
+    assert.equal(near.count + far.count, allCrowns, `${quality}: all foliage restores`);
+  }
+  assert.deepEqual(Array.from(trunks.instanceMatrix.array), originalTrunks);
 });
